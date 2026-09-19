@@ -34,9 +34,7 @@ def grabWebsite():
     
     print(f"{GRAY}Initialising getting the website{RESET}")
     
-    # getWebsite = input('Enter the URL of the website you want to scan: ')
-    # getWebsite = 'https://svelte-changelog.dev/package/svelte'
-    getWebsite = 'https://rhdyslexiaservices.co.uk'
+    getWebsite = input('Enter the URL of the website you want to scan: ')
     print(getWebsite)
     
     if not getWebsite:
