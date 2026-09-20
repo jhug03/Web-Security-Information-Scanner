@@ -1,5 +1,5 @@
 # Web-Vulnerability-Scanner
-Python-based web vulnerability scanner that fingerprints web technologies, detects versions, correlates software with known CVEs, and generates security reports.
+A Python-based website security scanner that checks authorised websites for common security misconfigurations, and vulnerabilities.
 
 # Requirements
 Set up a virtual environment:
