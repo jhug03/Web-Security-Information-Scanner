@@ -3,6 +3,7 @@ import webtech
 import ssl
 import socket
 import re
+import sys
 
 from urllib.parse import urlparse
 from datetime import datetime
@@ -14,6 +15,20 @@ RESET = "\033[0m"
 GRAY = "\033[90m"
 GREEN = "\033[32m"
 ORANGE = "\033[38;2;255;165;0m"
+
+
+class LogTee:
+    def __init__(self, terminal, log_file):
+        self.terminal = terminal
+        self.log_file = log_file
+
+    def write(self, text):
+        self.terminal.write(text)
+        self.log_file.write(re.sub(r"\033\[[0-9;]*m", "", text))
+
+    def flush(self):
+        self.terminal.flush()
+        self.log_file.flush()
 
 # Agree to not scanning unauthorised websites
 def agreeToPrivacy():
@@ -275,9 +290,9 @@ def checkAccessKey(getWebsite, response):
         access_key = soup.find("input", {"name": name})
 
         if access_key and access_key.get("value"):
-            print(f"{RED}{name}: EXPOSED{RESET}")
+            print(f"{RED}The value '{name}' in a form is exposed{RESET}")
             
-def checkMixedContent(getWebsite, response):
+def checkMixedContent(response):
     print(f"{GRAY}Checking mixed content{RESET}")
     
     soup = BeautifulSoup(response.text, "html.parser")
@@ -420,12 +435,8 @@ def findEmails(getWebsite, response):
 
         print(f"{GRAY}Found {emailCount} emails{RESET}")
 
-        for email in list(emails)[:5]:
+        for email in sorted(emails):
             print(f"{ORANGE}Email found: {email}{RESET}")
-
-        if emailCount > 5:
-            remaining = emailCount - 5
-            print(f"{GRAY}...and {remaining} more emails. See log.txt for more{RESET}")
             
     else:
         print(f"{GREEN}No email addresses found.{RESET}")
@@ -484,50 +495,61 @@ def checkPasswordAutocomplete(getWebsite, response):
         print(f"{GREEN}No password autocomplete fields found{RESET}")
 
 if __name__ == "__main__":
-    agreeToPrivacy() # Check if user agrees to not scanning random targets
-    # print(f"{GRAY}Returned to main to call grabWebsite{RESET}")
-    getWebsite = grabWebsite() # Grab the website the user wants to scan but only if user agrees above. Setup variable here first so it can be passed on without global initalisation.
-    # print(f"{GRAY}Returned to main to call checkValidWebsite{RESET}")
-    response = checkValidWebsite(getWebsite) # Check if the website is valid
-    # print(f"{GRAY}Returned to main to call headerScan{RESET}")
-    headerScan(getWebsite, response) # Get the headers from the site
-    # print(f"{GRAY}Returned to main to call getWebTechnologies{RESET}")
-    getWebTechnologies(getWebsite) # Get the web technologies. Area of improvement.
-    # print(f"{GRAY}Returned to main to call getCert{RESET}")
-    getCert(getWebsite) # Get the certificate from the site
-    # print(f"{GRAY}Returned to main to call getRobots{RESET}")
-    getRobots(getWebsite) # Get robots and sitemap
-    # print(f"{GRAY}Returned to main to call checkCookies{RESET}")
-    checkCookies(getWebsite, response) # Check stored cookies
-    # print(f"{GRAY}Returned to main to call checkCookies{RESET}")
-    checkMethods(getWebsite)
-    
-    checkCORS(getWebsite, response)
-    
-    getPageInfo(getWebsite, response)
-    
-    checkForms(getWebsite, response)
-    
-    checkAccessKey(getWebsite, response)
-    
-    checkMixedContent(getWebsite, response)
-    
-    checkExternalScripts(getWebsite, response)
-    
-    checkSRI(getWebsite, response)
-    
-    checkComments(getWebsite, response)
-    
-    checkDirectoryListing(getWebsite)
-    
-    checkSensitiveFiles(getWebsite)
-    
-    getDNS(getWebsite)
-    
-    findEmails(getWebsite, response)
-    
-    checkInsecureForms(getWebsite, response)
-    
-    checkSecurityTxt(getWebsite)
-    
-    checkPasswordAutocomplete(getWebsite, response)
+    with open("log.txt", "w", encoding="utf-8") as log_file:
+        original_stdout = sys.stdout
+        original_stderr = sys.stderr
+        sys.stdout = LogTee(original_stdout, log_file)
+        sys.stderr = LogTee(original_stderr, log_file)
+
+        try:
+            agreeToPrivacy() # Check if user agrees to not scanning random targets
+            # print(f"{GRAY}Returned to main to call grabWebsite{RESET}")
+            getWebsite = grabWebsite() # Grab the website the user wants to scan but only if they agree above. Setup variable here first so it can be passed on without global initalisation.
+            # print(f"{GRAY}Returned to main to call checkValidWebsite{RESET}")
+            response = checkValidWebsite(getWebsite) # Check if the website is valid
+            # print(f"{GRAY}Returned to main to call headerScan{RESET}")
+            headerScan(getWebsite, response) # Get the headers from the site
+            # print(f"{GRAY}Returned to main to call getWebTechnologies{RESET}")
+            getWebTechnologies(getWebsite) # Get the web technologies. Area of improvement.
+            # print(f"{GRAY}Returned to main to call getCert{RESET}")
+            getCert(getWebsite) # Get the certificate from the site
+            # print(f"{GRAY}Returned to main to call getRobots{RESET}")
+            getRobots(getWebsite) # Get robots and sitemap
+            # print(f"{GRAY}Returned to main to call checkCookies{RESET}")
+            checkCookies(getWebsite, response) # Check stored cookies
+            # print(f"{GRAY}Returned to main to call checkCookies{RESET}")
+            checkMethods(getWebsite)
+            
+            checkCORS(getWebsite, response)
+            
+            getPageInfo(getWebsite, response)
+            
+            checkForms(getWebsite, response)
+            
+            checkAccessKey(getWebsite, response)
+            
+            checkMixedContent(response)
+            
+            checkExternalScripts(getWebsite, response)
+            
+            checkSRI(getWebsite, response)
+            
+            checkComments(getWebsite, response)
+        
+            checkDirectoryListing(getWebsite)
+            
+            checkSensitiveFiles(getWebsite)
+            
+            getDNS(getWebsite)
+            
+            findEmails(getWebsite, response)
+            
+            checkInsecureForms(getWebsite, response)
+            
+            checkSecurityTxt(getWebsite)
+            
+            checkPasswordAutocomplete(getWebsite, response)
+        
+        finally:
+            sys.stdout = original_stdout
+            sys.stderr = original_stderr
