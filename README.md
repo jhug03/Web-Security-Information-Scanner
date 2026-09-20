@@ -47,6 +47,12 @@ python3 main.py
 - HTTP response analysis
 - Colour-coded terminal output
 
+## Colour codes
+- Red = May be bad
+- Orange = Point of interest
+- Green = Success
+
 ## Planned Features
+
 - Better framework/library detection
 - Version mapping with CVEs

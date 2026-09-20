@@ -567,55 +567,30 @@ if __name__ == "__main__":
 
         try:
             agreeToPrivacy() # Check if user agrees to not scanning random targets
-            # print(f"{GRAY}Returned to main to call grabWebsite{RESET}")
             getWebsite = grabWebsite() # Grab the website the user wants to scan but only if they agree above. Setup variable here first so it can be passed on without global initalisation.
-            # print(f"{GRAY}Returned to main to call checkValidWebsite{RESET}")
             response = checkValidWebsite(getWebsite) # Check if the website is valid
-            # print(f"{GRAY}Returned to main to call headerScan{RESET}")
             headerScan(getWebsite, response) # Get the headers from the site
-            # print(f"{GRAY}Returned to main to call getWebTechnologies{RESET}")
             getWebTechnologies(getWebsite) # Get the web technologies. Area of improvement.
-            # print(f"{GRAY}Returned to main to call getCert{RESET}")
             getCert(getWebsite) # Get the certificate from the site
-            # print(f"{GRAY}Returned to main to call getRobots{RESET}")
             getRobots(getWebsite) # Get robots and sitemap
-            # print(f"{GRAY}Returned to main to call checkCookies{RESET}")
             checkCookies(getWebsite, response) # Check stored cookies
-            # print(f"{GRAY}Returned to main to call checkCookies{RESET}")
             checkMethods(getWebsite)
-            
             checkCORS(getWebsite, response)
-            
             getPageInfo(getWebsite, response)
-            
             checkForms(getWebsite, response)
-            
             checkAccessKey(getWebsite, response)
-            
             checkMixedContent(response)
-            
             checkExternalScripts(getWebsite, response)
-            
             checkSRI(getWebsite, response)
-            
             checkComments(getWebsite, response)
-        
             checkDirectoryListing(getWebsite)
-            
             checkSensitiveFiles(getWebsite)
-            
             getDNS(getWebsite)
-            
             findEmails(getWebsite, response)
-            
             checkInsecureForms(getWebsite, response)
-            
             checkSecurityTxt(getWebsite)
-            
             checkPasswordAutocomplete(getWebsite, response)
-            
             getFaviconHash(getWebsite, response)
-            
             checkPerformanceReport(response)
         
         finally:
