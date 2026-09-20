@@ -4,6 +4,8 @@ import ssl
 import socket
 import re
 import sys
+import mmh3
+import codecs
 
 from urllib.parse import urlparse
 from datetime import datetime
@@ -50,7 +52,8 @@ def grabWebsite():
     print(f"{GRAY}Initialising getting the website{RESET}")
     
     getWebsite = input('Enter the URL of the website you want to scan: ')
-    print(getWebsite)
+    # getWebsite = 'https://rhdyslexiaservices.co.uk'
+    print(f"{GRAY}{getWebsite}{RESET}")
     
     if not getWebsite:
         print(f"{RED}Website is empty. Exiting...{RESET}")
@@ -421,8 +424,6 @@ def getDNS(getWebsite):
 def findEmails(getWebsite, response):
     print(f"{GRAY}Finding emails{RESET}")
     
-    emailCount = 0
-    
     emails = re.findall(
         r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
         response.text
@@ -432,11 +433,20 @@ def findEmails(getWebsite, response):
 
     if emails:
         emailCount = len(emails)
-
         print(f"{GRAY}Found {emailCount} emails{RESET}")
 
-        for email in sorted(emails):
-            print(f"{ORANGE}Email found: {email}{RESET}")
+        sorted_emails = sorted(emails)
+
+        for i, email in enumerate(sorted_emails):
+            if i < 10:
+                print(f"{ORANGE}Email found: {email}{RESET}")
+            else:
+                if hasattr(sys.stdout, "log_file"):
+                    sys.stdout.log_file.write(f"Email found: {email}\n")
+            
+        if emailCount > 10:
+            remaining = emailCount - 10
+            print(f"{GRAY}...and {remaining} more found (check log.txt for full list){RESET}")
             
     else:
         print(f"{GREEN}No email addresses found.{RESET}")
@@ -494,6 +504,60 @@ def checkPasswordAutocomplete(getWebsite, response):
     if not found:
         print(f"{GREEN}No password autocomplete fields found{RESET}")
 
+def getFaviconHash(getWebsite, response):
+    print(f"{GRAY}Checking and hashing favicon for infrastructure fingerprinting...{RESET}")
+    
+    soup = BeautifulSoup(response.text, "html.parser")
+    favicon_url = None
+
+    for link in soup.find_all("link"):
+        rel = link.get("rel", [])
+        if any(r in rel for r in ["icon", "shortcut icon", "apple-touch-icon"]):
+            favicon_url = link.get("href")
+            break
+
+    if not favicon_url:
+        favicon_url = "/favicon.ico"
+
+    full_favicon_url = urljoin(getWebsite, favicon_url)
+
+    try:
+        fav_response = requests.get(full_favicon_url, timeout=10)
+        if fav_response.status_code == 200:
+            favicon_base64 = codecs.encode(fav_response.content, "base64")
+            
+            hash_value = mmh3.hash(favicon_base64)
+            
+            print(f"{GRAY}Favicon found at: {full_favicon_url}{RESET}")
+            print(f"{GRAY}Favicon MurmurHash3: {ORANGE}{hash_value}{RESET}")
+            
+            shodan_url = f"https://www.shodan.io/search?query=http.favicon.hash%3A{hash_value}"
+            print(f"{GRAY}Shodan Search Link. You need to be logged into Shodan to use this feature and it may return no results: {ORANGE}{shodan_url}{RESET}")
+        else:
+            print(f"{ORANGE}Favicon could not be retrieved (HTTP {fav_response.status_code}){RESET}")
+    except Exception as e:
+        print(f"{ORANGE}Error retrieving favicon: {e}{RESET}")
+
+
+def checkPerformanceReport(response):
+    print(f"{GRAY}Generating performance report{RESET}")
+    
+    elapsed_time_ms = response.elapsed.total_seconds() * 1000
+    
+    content_size_bytes = len(response.content)
+    content_size_kb = content_size_bytes / 1024
+    
+    content_encoding = response.headers.get("Content-Encoding", "None")
+    
+    print(f"{GRAY}Performance and speed analysis:{RESET}")
+    print(f"{GRAY}- Response Time (Latency): {GREEN}{elapsed_time_ms:.2f} ms{RESET}")
+    print(f"{GRAY}- Main Page Size: {GREEN}{content_size_kb:.2f} KB{RESET}")
+    
+    if content_encoding != "None":
+        print(f"{GRAY}- Text Compression: {GREEN}Enabled ({content_encoding}){RESET}")
+    else:
+        print(f"{GRAY}- Text Compression: {ORANGE}Disabled (Missing Content-Encoding){RESET}")
+
 if __name__ == "__main__":
     with open("log.txt", "w", encoding="utf-8") as log_file:
         original_stdout = sys.stdout
@@ -549,6 +613,10 @@ if __name__ == "__main__":
             checkSecurityTxt(getWebsite)
             
             checkPasswordAutocomplete(getWebsite, response)
+            
+            getFaviconHash(getWebsite, response)
+            
+            checkPerformanceReport(response)
         
         finally:
             sys.stdout = original_stdout

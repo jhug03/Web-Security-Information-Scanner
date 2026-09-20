@@ -46,3 +46,7 @@ python3 main.py
 - Basic form and input analysis
 - HTTP response analysis
 - Colour-coded terminal output
+
+## Planned Features
+- Better framework/library detection
+- Version mapping with CVEs
