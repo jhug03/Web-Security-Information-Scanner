@@ -14,8 +14,6 @@ Then:
 ```bash
 pip3 install -r requirements.txt
 ```
-<<<<<<< HEAD
-=======
 
 Run with:
 
@@ -48,4 +46,3 @@ python3 main.py
 - Basic form and input analysis
 - HTTP response analysis
 - Colour-coded terminal output
->>>>>>> c1f6abc (Implemented log.txt)
