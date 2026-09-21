@@ -6,6 +6,9 @@ import re
 import sys
 import mmh3
 import codecs
+import time
+from pathlib import Path
+import shutil
 
 from urllib.parse import urlparse
 from datetime import datetime
@@ -17,7 +20,6 @@ RESET = "\033[0m"
 GRAY = "\033[90m"
 GREEN = "\033[32m"
 ORANGE = "\033[38;2;255;165;0m"
-
 
 class LogTee:
     def __init__(self, terminal, log_file):
@@ -34,8 +36,7 @@ class LogTee:
 
 # Agree to not scanning unauthorised websites
 def agreeToPrivacy():
-    print(f"{GRAY}Initialising privacy check{RESET}")
-    print("\n----------------------------------------\nThis tool should only be utilised on websites you are authorised to scan.\nScanning unauthorised websites may be illegal.\n----------------------------------------")
+    print(f"{RED}\n----------------------------------------\nThis tool should only be utilised on websites you are authorised to scan.\nScanning unauthorised websites may be illegal.\n----------------------------------------{RESET}")
     
     agreeToPrivacyInput = input('\nAgree to above? (y/n):')
     
@@ -44,6 +45,26 @@ def agreeToPrivacy():
     else:
         print(f"{RED}You need to agree to the above before you can use this tool{RESET}")
         exit() # Quit if user doesn't type anything but y
+        
+def startOptions():
+    print('\nPlease choose an option:\n1 - Scan a website\n2 - Clear log files')
+    whichOption = input('Enter: ')
+    
+    if (whichOption == '1'):
+        return
+        
+    if (whichOption == '2'):
+        print(f"{RED}Clearing log files{RESET}")
+        shutil.rmtree("logs")
+        
+        folder = Path(__file__).parent / "logs"
+        
+        if folder.is_dir():
+            print(f"{RED}Folder could not be deleted{RESET}")
+        else:
+            print(f"{GREEN}Folder deleted successfully{RESET}")
+            
+        exit()
 
 def grabWebsite():
     print(f"{GRAY}Getting the website{RESET}")
@@ -559,13 +580,18 @@ def checkPerformanceReport(response):
         print(f"{GRAY}- Text Compression: {ORANGE}Disabled (Missing Content-Encoding){RESET}")
 
 if __name__ == "__main__":
-    with open("log.txt", "w", encoding="utf-8") as log_file:
+    logs_directory = Path(__file__).resolve().parent / "logs"
+    logs_directory.mkdir(exist_ok=True)
+    log_filename = datetime.now().strftime("scan_%Y-%m-%d_%H-%M-%S-%f.txt")
+
+    with open(logs_directory / log_filename, "w", encoding="utf-8") as log_file:
         original_stdout = sys.stdout
         original_stderr = sys.stderr
         sys.stdout = LogTee(original_stdout, log_file)
         sys.stderr = LogTee(original_stderr, log_file)
 
         try:
+            startOptions()
             agreeToPrivacy() # Check if user agrees to not scanning random targets
             getWebsite = grabWebsite() # Grab the website the user wants to scan but only if they agree above. Setup variable here first so it can be passed on without global initalisation.
             response = checkValidWebsite(getWebsite) # Check if the website is valid
