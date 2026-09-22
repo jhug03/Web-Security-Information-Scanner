@@ -258,7 +258,7 @@ def getRobots(getWebsite):
         print(f"{ORANGE}sitemap.xml not found{RESET}")
 
 # Check if any cookies are found on the site
-def checkCookies(response):
+def checkCookies(getWebsite, response):
     print(f"{GRAY}Getting website cookies{RESET}")
     
     cookies = response.cookies # Get the cookies
@@ -292,7 +292,7 @@ def checkMethods(getWebsite):
     else:
         print(f"{GREEN}Allowed methods not disclosed{RESET}")
         
-def checkCORS(response):
+def checkCORS(getWebsite, response):
     cors = response.headers.get("Access-Control-Allow-Origin")
 
     if cors:
@@ -305,7 +305,7 @@ def checkCORS(response):
     else:
         print(f"{GRAY}CORS: Not configured{RESET}")
 
-def getPageInfo(response):
+def getPageInfo(getWebsite, response):
     print(f"{GRAY}Getting page info{RESET}")
     
     soup = BeautifulSoup(response.text, "html.parser")
@@ -344,7 +344,7 @@ def checkForms(getWebsite, response):
             else:
                 print(f"{GREEN}Password form submits over HTTPS.{RESET}")
                 
-def checkAccessKey(response):
+def checkAccessKey(getWebsite, response):
     print(f"{GRAY}Checking leaked access key{RESET}")
     
     soup = BeautifulSoup(response.text, "html.parser")
@@ -383,7 +383,7 @@ def checkMixedContent(response):
     if not found:
         print(f"{GREEN}No mixed content found. Site does not load resources over plain HTTP{RESET}")
         
-def checkExternalScripts(response):
+def checkExternalScripts(getWebsite, response):
     print(f"{GRAY}Checking external scripts{RESET}")
     
     soup = BeautifulSoup(response.text, "html.parser")
@@ -394,7 +394,7 @@ def checkExternalScripts(response):
         if src:
             print(f"{ORANGE}Script: {src}{RESET}")
             
-def checkSRI(response):
+def checkSRI(getWebsite, response):
     print(f"{GRAY}Checking SRI{RESET}")
     
     soup = BeautifulSoup(response.text, "html.parser")
@@ -415,7 +415,7 @@ def checkSRI(response):
     if not found:
         print(f"{GRAY}No external resources found.{RESET}")
         
-def checkComments(response):
+def checkComments(getWebsite, response):
     print(f"{GRAY}Checking any long comments{RESET}")
     
     soup = BeautifulSoup(response.text, "html.parser")
@@ -492,7 +492,7 @@ def getDNS(getWebsite):
     except socket.gaierror:
         print(f"{RED}Could not resolve hostname.{RESET}")
         
-def findEmails(response):
+def findEmails(getWebsite, response):
     print(f"{GRAY}Finding emails{RESET}")
     
     emails = re.findall(
@@ -522,7 +522,7 @@ def findEmails(response):
     else:
         print(f"{GREEN}No email addresses found.{RESET}")
 
-def checkInsecureForms(response):
+def checkInsecureForms(getWebsite, response):
     print(f"{GRAY}Checking insecure forms{RESET}")
     
     soup = BeautifulSoup(response.text, "html.parser")
@@ -554,7 +554,7 @@ def checkSecurityTxt(getWebsite):
     else:
         print(f"{GRAY}security.txt: HTTP {response.status_code}{RESET}")
 
-def checkPasswordAutocomplete(response):
+def checkPasswordAutocomplete(getWebsite, response):
     print(f"{GRAY}Checking if password fields autocomplete{RESET}")
     
     soup = BeautifulSoup(response.text, "html.parser")
@@ -575,7 +575,7 @@ def checkPasswordAutocomplete(response):
     if not found:
         print(f"{GREEN}No password autocomplete fields found{RESET}")
 
-def getFaviconHash(response):
+def getFaviconHash(getWebsite, response):
     print(f"{GRAY}Checking and hashing favicon for infrastructure fingerprinting...{RESET}")
     
     soup = BeautifulSoup(response.text, "html.parser")
@@ -590,7 +590,7 @@ def getFaviconHash(response):
     if not favicon_url:
         favicon_url = "/favicon.ico"
 
-    full_favicon_url = urljoin(favicon_url)
+    full_favicon_url = urljoin(getWebsite, favicon_url)
 
     try:
         fav_response = requests.get(full_favicon_url, timeout=10)
