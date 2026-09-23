@@ -1,4 +1,4 @@
-# Web-Vulnerability-Scanner
+# Web-Security-Information-Scanner
 A Python-based website security scanner that checks authorised websites for common security misconfigurations, and vulnerabilities.
 
 ## Requirements

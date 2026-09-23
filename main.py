@@ -21,6 +21,7 @@ RESET = "\033[0m"
 GRAY = "\033[90m"
 GREEN = "\033[32m"
 ORANGE = "\033[38;2;255;165;0m"
+BLUE = "\033[34m"
 
 # Logging
 class LogTee:
@@ -38,14 +39,14 @@ class LogTee:
 
 # Agree to not scanning unauthorised websites
 def agreeToPrivacy():
-    print(f"{RED}\n----------------------------------------\nThis tool should only be utilised on websites you are authorised to scan.\nScanning unauthorised websites may be illegal.\n----------------------------------------{RESET}")
+    print(f"{RED}[!] \n----------------------------------------\nThis tool should only be utilised on websites you are authorised to scan.\nScanning unauthorised websites may be illegal.\n----------------------------------------{RESET}")
     
     agreeToPrivacyInput = input('\nAgree to above? (y/n):')
     
     if (agreeToPrivacyInput == 'y'):
         return
     else: # If user doesn't type anything but y
-        print(f"{RED}You need to agree to the above before you can use this tool{RESET}")
+        print(f"{RED}[!] You need to agree to the above before you can use this tool{RESET}")
         exit() # Quit
         
 # Handle clearing the logs or scanning a website
@@ -57,151 +58,242 @@ def startOptions():
         return # Return to where the function was called from which carries on with the natural flow of the program
         
     if (whichOption == '2'):
-        print(f"{RED}Clearing log files{RESET}")
+        print(f"{RED}[!] Clearing log files{RESET}")
         shutil.rmtree("logs") # Remove the logs folder
         
         folder = Path(__file__).parent / "logs" # Grab the logs folder
         
         # Check to see if it has been deleted or not
         if folder.is_dir():
-            print(f"{RED}Folder could not be deleted{RESET}")
+            print(f"{RED}[!] Folder could not be deleted{RESET}")
         else:
-            print(f"{GREEN}Folder deleted successfully{RESET}")
+            print(f"{GREEN}[+] Folder deleted successfully{RESET}")
             
         exit() # Exit regardless
         
     else: # Exit if 1 or 2 was not chosen
-        print(f"{RED}You need to choose an option. Exiting...{RESET}")
+        print(f"{RED}[!] You need to choose an option. Exiting...{RESET}")
         exit() # Quit
         
 #  Handle getting the website the user wants to scan
 def grabWebsite():
     extensions = ['.com', '.co.uk', '.org', '.net', '.io', 'https://', 'http://'] # Site extensions
     
-    getWebsite = input('\nTARGET URL ➤ ')
-    print(f"{GRAY}{getWebsite}{RESET}")
+    # getWebsite = input('\nTARGET URL ➤ ')
+    getWebsite = 'https://svelte-changelog.dev/package/eslint-config'
+    print(f"{GRAY}[.] {getWebsite}{RESET}")
     
     if not getWebsite: # If user doesn't enter anything
-        print(f"{RED}Input is empty. Exiting...{RESET}")
+        print(f"{RED}[!] Input is empty. Exiting...{RESET}")
         exit()
 
     if not any(extension in getWebsite for extension in extensions): # If domain extension or https/http is missing
-        print(f"{RED}Input does not contain domain extension and/or https/http Exiting...{RESET}")
+        print(f"{RED}[!] Input does not contain domain extension and/or https/http Exiting...{RESET}")
         exit()
 
     return getWebsite # Returning the stored website allows the program to pass the inputted website around without declaring it globally
 
 # Check if the website is even valid
 def checkValidWebsite(getWebsite):
-    print(f"{GRAY}Checking if website is valid{RESET}")
+    print(f"{GRAY}[.] Checking if website is valid{RESET}")
     
     try:
         response = requests.get(getWebsite, timeout=10) # Send a request to the site with a 10 sec timeout
 
-        print(f"{GRAY}Website status: {response.status_code}{RESET}") # Display response code
+        print(f"{GRAY}[.] Website status: {response.status_code}{RESET}") # Display response code
 
         if response.ok: # If response is ok
-            print(f"{GREEN}Website is reachable.{RESET}")
+            print(f"{GREEN}[+] Website is reachable.{RESET}")
         else:
-            print(f"{RED}Website returned an error. Exiting...{RESET}")
+            print(f"{RED}[!] Website returned an error. Exiting...{RESET}")
             exit() # Quit if no response
 
         return response
 
     except requests.RequestException:
-        print(f"{RED}Website could not be reached. Exiting...{RESET}")
+        print(f"{RED}[!] Website could not be reached. Exiting...{RESET}")
         exit()
 
 
 # Scan site headers
 def headerScan(getWebsite, response):
-    print(f"{GRAY}Getting web headers{RESET}")
+    # Each header defines what its presence/absence means.
+    #
+    # "present_good" = True  -> presence is good, absence is a warning
+    # "present_good" = False -> presence is not desirable, absence is good
+    # "conditional" = True   -> presence/absence is informational
+
+    security_headers = {
+        # Security headers
+        "Strict-Transport-Security": {
+            "present_good": True,
+            "missing_message": "HSTS is missing"
+        },
+
+        "Content-Security-Policy": {
+            "present_good": True,
+            "missing_message": "CSP is missing"
+        },
+
+        "X-Content-Type-Options": {
+            "present_good": True,
+            "missing_message": "X-Content-Type-Options is missing"
+        },
+
+        "X-Frame-Options": {
+            "present_good": True,
+            "missing_message": "X-Frame-Options is missing"
+        },
+
+        "Referrer-Policy": {
+            "present_good": True,
+            "missing_message": "Referrer-Policy is missing"
+        },
+
+        "Permissions-Policy": {
+            "present_good": True,
+            "missing_message": "Permissions-Policy is missing"
+        },
+
+        # Cross-origin headers
+        "Cross-Origin-Opener-Policy": {
+            "present_good": True,
+            "missing_message": "COOP is missing"
+        },
+
+        "Cross-Origin-Resource-Policy": {
+            "present_good": True,
+            "missing_message": "CORP is missing"
+        },
+
+        "Cross-Origin-Embedder-Policy": {
+            "present_good": True,
+            "missing_message": "COEP is missing"
+        },
+
+        # Conditional headers
+        "Cache-Control": {
+            "conditional": True
+        },
+
+        "Pragma": {
+            "conditional": True
+        },
+
+        "Content-Disposition": {
+            "conditional": True
+        },
+
+        "Reporting-Endpoints": {
+            "conditional": True
+        },
+
+        "NEL": {
+            "conditional": True
+        },
+
+        # Deprecated headers
+        "Expect-CT": {
+            "present_good": False,
+            "missing_message": "Expect-CT is not present"
+        },
+
+        "X-XSS-Protection": {
+            "present_good": False,
+            "missing_message": "X-XSS-Protection is not present"
+        },
+
+        "X-Permitted-Cross-Domain-Policies": {
+            "present_good": True,
+            "missing_message": "X-Permitted-Cross-Domain-Policies is missing"
+        },
+
+        "X-Download-Options": {
+            "present_good": True,
+            "missing_message": "X-Download-Options is missing"
+        }
+    }
+
+    headers = response.headers
+
+    if not headers:
+        print(
+            f"{RED}[!] Could not get website headers "
+            f"despite website being reachable{RESET}"
+        )
+        return
+
+    print("\nHeaders")
     
-    # Store common headers found on a website.
-    # This isn't necessarily a problem if they are missing, but just good to know. 
-    security_headers = [
-        # Core security headers
-        "Strict-Transport-Security",
-        "Content-Security-Policy",
-        "X-Content-Type-Options",
-        "X-Frame-Options",
-        "Referrer-Policy",
-        "Permissions-Policy",
-
-        # Cross origin isolation/protection
-        "Cross-Origin-Opener-Policy",
-        "Cross-Origin-Resource-Policy",
-        "Cross-Origin-Embedder-Policy",
-
-        # Caching
-        "Cache-Control",
-        "Pragma",
-
-        # Browser/download protections
-        "Content-Disposition",
-
-        # CSP related reporting
-        "Reporting-Endpoints",
-        "NEL",
-
-        # Certificate/transport-related
-        "Expect-CT",
-
-        # Legacy headers
-        "X-XSS-Protection",
-        "X-Permitted-Cross-Domain-Policies",
-
-        # Microsoft specific
-        "X-Download-Options"
-    ]
-
-    print(f"{GRAY}Scanning {getWebsite} {RESET}")
+    print(f"{GRAY}[i] Website headers found{RESET}")
     
-    headers = response.headers # Check if headers are found
-    
-    if headers: # If headers are found
-        print(f"{GREEN}Website headers found{RESET}")
-        
-        # Loop round the headers to see which have been found
-        for header in security_headers:
-            if header in response.headers: # Check the response of each header
-                print(f"{GRAY}{header}:{RESET}" f"{GREEN}PRESENT{RESET}")
+    for header, config in security_headers.items():
+
+        present = header in headers
+
+        # Conditional header
+        if config.get("conditional"):
+            if present:
+                print(
+                    f"{BLUE}[i] {header} is present{RESET}"
+                )
             else:
-                print(f"{GRAY}{header}:{RESET}" f"{ORANGE}MISSING{RESET}")
-    else:
-        print(f"{RED}Could not get website headers despite website being reachable{RESET}")
-        # Don't wanna quit it here so we leave this blank so the program can continue
-        
-    print(f"{GRAY}Missing headers don't immediately indicate a problem{RESET}")
+                print(
+                    f"{BLUE}[i] {header} is missing{RESET}"
+                )
+            continue
+
+        # Header whose presence is good
+        if config["present_good"]:
+            if present:
+                print(
+                    f"{GREEN}[+] {header} is present{RESET}"
+                )
+            else:
+                print(
+                    f"{ORANGE}[~] {config['missing_message']}{RESET}"
+                )
+
+        # Header whose absence is good
+        else:
+            if present:
+                print(
+                    f"{ORANGE}[~] {header} is present "
+                    f"(legacy/deprecated){RESET}"
+                )
+            else:
+                print(
+                    f"{GREEN}[+] {config['missing_message']}{RESET}"
+                )
 
 # Get the web technologies used on the site
 # This is a WIP and doesn't display a lot right now
 # Use a library called webtech
 def getWebTechnologies(getWebsite):
-    print(f"{GRAY}Getting web technologies{RESET}")
+    print(f"\nWeb technologies")
     
     wt = webtech.WebTech(options={'json': True})
 
     try:
         result = wt.start_from_url(getWebsite) # Scan the website using webtech for technologies
-        print(f"{GREEN}Web technologies found{RESET}")
+        print(f"{GREEN}[+] Web technologies found{RESET}")
         
         technologies = result.get('tech', [])
         
         for item in technologies: # Loop the found items in stored technologies
             name = item.get('name', 'Unknown')
             
-            print(f"{GRAY}- {name}{RESET}") # Print found technologies
+            print(f"{GRAY}[.] - {name}{RESET}") # Print found technologies
             
     except Exception as e: # If no technologies found
-        print(f"{ORANGE}No web technologies found: {e}{RESET}")
+        print(f"{ORANGE}[~] No web technologies found: {e}{RESET}")
 
 # Get site certifications
 def getCert(getWebsite):
+    print("\nCertificate")
     parsed = urlparse(getWebsite) # Parse the website URL
-
     if parsed.scheme != "https": # Check if site uses https
-        print(f"{GRAY}TLS certificate: Not applicable (HTTP){RESET}")
+        print(f"{GRAY}[.] TLS certificate: Not applicable (HTTP){RESET}")
         return
 
     hostname = parsed.hostname # Get the website hostname
@@ -217,8 +309,8 @@ def getCert(getWebsite):
             certificate = ssock.getpeercert() # Get the website's certificate
 
             # Show the TLS version and cipher used
-            print(f"{GRAY}TLS Version: {ssock.version()}{RESET}")
-            print(f"{GRAY}Cipher: {ssock.cipher()[0]}{RESET}")
+            print(f"{GRAY}[.] TLS Version: {ssock.version()}{RESET}")
+            print(f"{GRAY}[.] Cipher: {ssock.cipher()[0]}{RESET}")
 
             # Get the certificate issuer
             issuer = ", ".join(
@@ -235,84 +327,85 @@ def getCert(getWebsite):
             )
 
             # Display certificate information
-            print(f"{GRAY}Issuer: {issuer}{RESET}")
-            print(f"{GRAY}Valid from: {certificate['notBefore']}{RESET}")
-            print(f"{GRAY}Valid until: {certificate['notAfter']}{RESET}")
-            print(f"{GRAY}Subject: {subject}{RESET}")
+            print(f"{GRAY}[.] Issuer: {issuer}{RESET}")
+            print(f"{GRAY}[.] Valid from: {certificate['notBefore']}{RESET}")
+            print(f"{GRAY}[.] Valid until: {certificate['notAfter']}{RESET}")
+            print(f"{GRAY}[.] Subject: {subject}{RESET}")
 
 # Get robots.txt and sitemap.xml
 def getRobots(getWebsite):
-    print(f"{GRAY}Getting robots and sitemap{RESET}")
+    print(f"\nRobots and sitemap")
     
     # Get the two files
     robots = requests.get(f"{getWebsite}/robots.txt", timeout=10)
     sitemap = requests.get(f"{getWebsite}/sitemap.xml", timeout=10)
     
     if robots.status_code == 200: # If robots is found
-        print(f"{GREEN}robots.txt found{RESET}")
+        print(f"{BLUE}[!] robots.txt found{RESET}")
     else:
-        print(f"{ORANGE}robots.txt not found{RESET}")
+        print(f"{ORANGE}[~] robots.txt not found{RESET}")
 
     if sitemap.status_code == 200: # If sitemap is found
-        print(f"{GREEN}sitemap.xml found{RESET}")
+        print(f"{BLUE}[!] sitemap.xml found{RESET}")
     else:
-        print(f"{ORANGE}sitemap.xml not found{RESET}")
+        print(f"{ORANGE}[~] sitemap.xml not found{RESET}")
 
 # Check if any cookies are found on the site
 def checkCookies(getWebsite, response):
-    print(f"{GRAY}Getting website cookies{RESET}")
+    print(f"\nCookies")
     
     cookies = response.cookies # Get the cookies
 
     if not cookies: # If no cookies are found
-        print(f"{GRAY}No cookies found{RESET}")
+        print(f"{GREEN}[+] No cookies found{RESET}")
         return
 
     for cookie in cookies: # Loop the found cookies
-        print(f"{GRAY}Cookie: {cookie.name}{RESET}")
+        print(f"{GRAY}[.] Cookie: {cookie.name}{RESET}")
 
         if cookie.secure:
-            print(f"{GREEN}Secure: Yes{RESET}")
+            print(f"{GREEN}[+] Secure: Yes{RESET}")
         else:
-            print(f"{RED}Secure: No{RESET}")
+            print(f"{RED}[!] Secure: No{RESET}")
 
         if cookie.has_nonstandard_attr("HttpOnly"):
-            print(f"{GREEN}HttpOnly: Yes{RESET}")
+            print(f"{GREEN}[+] HttpOnly: Yes{RESET}")
         else:
-            print(f"{RED}HttpOnly: No{RESET}")
+            print(f"{RED}[!] HttpOnly: No{RESET}")
 
 def checkMethods(getWebsite):
-    print(f"{GRAY}Checking for any allowed methods{RESET}")
+    print(f"\nMethods")
     
     response = requests.options(getWebsite, timeout=10) # Get the response using requests from the site with a 10sec timeout
 
     methods = response.headers.get("Allow") # Get headers
 
     if methods:
-        print(f"{GRAY}Allowed methods: {methods}{RESET}")
+        print(f"{GRAY}[.] Allowed methods: {methods}{RESET}")
     else:
-        print(f"{GREEN}Allowed methods not disclosed{RESET}")
+        print(f"{GREEN}[+] Allowed methods not disclosed{RESET}")
         
 # Get site CORS. Stands for Cross-Origin Resource Sharing.
 # CORS is a browser security mechanism that controls whether JavaScript is allowed to read responses from a different website.
 def checkCORS(getWebsite, response):
+    print("\nCORS")
     cors = response.headers.get("Access-Control-Allow-Origin")
 
     if cors:
-        print(f"{GRAY}CORS: {cors}{RESET}")
+        print(f"{GRAY}[.] CORS: {cors}{RESET}")
 
         if cors == "*":
-            print(f"{ORANGE}CORS allows all origins{RESET}")
+            print(f"{ORANGE}[~] CORS allows all origins{RESET}")
         else:
-            print(f"{GREEN}CORS origin restricted{RESET}")
+            print(f"{GREEN}[+] CORS origin restricted{RESET}")
     else:
-        print(f"{GRAY}CORS: Not configured{RESET}")
+        print(f"{BLUE}[i] CORS: Not configured{RESET}")
 
 
 # Page structure and form checks
 # Get general information about the page
 def getPageInfo(getWebsite, response):
-    print(f"{GRAY}Getting page info{RESET}")
+    print(f"\nGeneral info{RESET}")
     
     soup = BeautifulSoup(response.text, "html.parser")
 
@@ -320,18 +413,18 @@ def getPageInfo(getWebsite, response):
     content_type = response.headers.get("Content-Type", "Unknown")
     page_size = len(response.content)
 
-    print(f"{GRAY}Page title: {title}{RESET}")
-    print(f"{GRAY}Content-Type: {content_type}{RESET}")
-    print(f"{GRAY}Page size: {page_size} bytes{RESET}")
+    print(f"{GRAY}[.] Page title: {title}{RESET}")
+    print(f"{GRAY}[.] Content-Type: {content_type}{RESET}")
+    print(f"{GRAY}[.] Page size: {page_size} bytes{RESET}")
     
 def checkForms(getWebsite, response):
-    print(f"{GRAY}Getting forms on the site{RESET}")
+    print(f"\nForms")
     
     soup = BeautifulSoup(response.text, "html.parser")
 
     forms = soup.find_all("form")
 
-    print(f"{GRAY}Forms found: {len(forms)}{RESET}")
+    print(f"{GRAY}[.] Forms found: {len(forms)}{RESET}")
 
     for form in forms:
         action = form.get("action", "")
@@ -339,20 +432,20 @@ def checkForms(getWebsite, response):
 
         action_url = urljoin(getWebsite, action)
 
-        print(f"{GRAY}Form action: {action_url}{RESET}")
-        print(f"{GRAY}Method: {method}{RESET}")
+        print(f"{GRAY}[.] Form action: {action_url}{RESET}")
+        print(f"{GRAY}[.] Method: {method}{RESET}")
 
         password = form.find("input", {"type": "password"})
 
         if password:
             if action_url.startswith("http://"):
-                print(f"{RED}Password form submits over HTTP.{RESET}")
+                print(f"{RED}[!] Password form submits over HTTP.{RESET}")
             else:
-                print(f"{GREEN}Password form submits over HTTPS.{RESET}")
+                print(f"{GREEN}[+] Password form submits over HTTPS.{RESET}")
                 
 def checkAccessKey(getWebsite, response):
-    print(f"{GRAY}Checking leaked access key{RESET}")
-    
+    print(f"\nLeaked keys")
+
     soup = BeautifulSoup(response.text, "html.parser")
 
     names = [
@@ -366,14 +459,22 @@ def checkAccessKey(getWebsite, response):
         "apikey"
     ]
 
+    found = False
+
     for name in names:
         access_key = soup.find("input", {"name": name})
 
         if access_key and access_key.get("value"):
-            print(f"{RED}The value '{name}' in a form is exposed{RESET}")
+            print(
+                f"{RED}[!] The value '{name}' in a form is exposed{RESET}"
+            )
+            found = True
+
+    if not found:
+        print(f"{GREEN}[+] No access keys found{RESET}")
             
 def checkMixedContent(response):
-    print(f"{GRAY}Checking mixed content{RESET}")
+    print(f"\nMixed Content")
     
     soup = BeautifulSoup(response.text, "html.parser")
 
@@ -383,25 +484,31 @@ def checkMixedContent(response):
         url = tag.get("src") or tag.get("href")
 
         if url and url.startswith("http://"):
-            print(f"{RED}Mixed content: {url}{RESET}")
+            print(f"{RED}[!] Mixed content: {url}{RESET}")
             found = True
 
     if not found:
-        print(f"{GREEN}No mixed content found. Site does not load resources over plain HTTP{RESET}")
+        print(f"{GREEN}[+] No mixed content found. Site does not load resources over plain HTTP{RESET}")
         
 def checkExternalScripts(getWebsite, response):
-    print(f"{GRAY}Checking external scripts{RESET}")
+    print(f"\nExternal scripts")
     
     soup = BeautifulSoup(response.text, "html.parser")
+    
+    found = False
 
     for script in soup.find_all("script"):
         src = script.get("src")
 
         if src:
-            print(f"{ORANGE}Script: {src}{RESET}")
+            print(f"{ORANGE}[~] Script: {src}{RESET}")
+            found = True
+            
+    if not found:
+        print(f"{GREEN}[+] No external scripts found{RESET}")
             
 def checkSRI(getWebsite, response):
-    print(f"{GRAY}Checking SRI{RESET}")
+    print(f"\nSRI")
     
     soup = BeautifulSoup(response.text, "html.parser")
 
@@ -414,15 +521,15 @@ def checkSRI(getWebsite, response):
             found = True
 
             if tag.get("integrity"):
-                print(f"{GREEN}SRI: PRESENT - {url}{RESET}")
+                print(f"{GREEN}[+] SRI: PRESENT - {url}{RESET}")
             else:
-                print(f"{ORANGE}SRI missing on - {url}{RESET}")
+                print(f"{ORANGE}[~] SRI missing on - {url}{RESET}")
                 
     if not found:
-        print(f"{GRAY}No external resources found.{RESET}")
+        print(f"{GRAY}[.] No external resources found.{RESET}")
         
 def checkComments(getWebsite, response):
-    print(f"{GRAY}Checking any long comments{RESET}")
+    print(f"\nComments")
     
     soup = BeautifulSoup(response.text, "html.parser")
 
@@ -436,14 +543,14 @@ def checkComments(getWebsite, response):
         if len(text) < 5:
             continue
 
-        print(f"{ORANGE}Comment: {text}{RESET}")
+        print(f"{ORANGE}[~] Comment: {text}{RESET}")
         found = True
 
     if not found:
-        print(f"{GREEN}No useful comments found.{RESET}")
+        print(f"{GREEN}[+] No useful comments found.{RESET}")
         
 def checkDirectoryListing(getWebsite):
-    print(f"{GRAY}Checking directory listings{RESET}")
+    print(f"\nDirectory listings")
     
     paths = [
         "/uploads/",
@@ -458,12 +565,12 @@ def checkDirectoryListing(getWebsite):
         response = requests.get(getWebsite + path, timeout=10)
 
         if response.status_code == 200 and "Index of /" in response.text:
-            print(f"{RED}Directory listing exposed: {path}{RESET}")
+            print(f"{RED}[!] Directory listing exposed: {path}{RESET}")
         else:
-            print(f"{GRAY}No directory listing: {path}{RESET}")
+            print(f"{GRAY}[.] No directory listing: {path}{RESET}")
             
 def checkSensitiveFiles(getWebsite):
-    print(f"{GRAY}Checking sensitive files{RESET}")
+    print(f"Sensitive files")
     
     files = [
         "/.env",
@@ -478,28 +585,28 @@ def checkSensitiveFiles(getWebsite):
         response = requests.get(url, timeout=10)
 
         if response.status_code == 200:
-            print(f"{ORANGE}{file}: FOUND{RESET}")
-            print(f"{GRAY}Location: {url}{RESET}")
+            print(f"{ORANGE}[~] {file}: FOUND{RESET}")
+            print(f"{GRAY}[.] Location: {url}{RESET}")
         elif response.status_code == 404:
-            print(f"{GREEN}{file}: Not found{RESET}")
+            print(f"{GREEN}[+] {file}: Not found{RESET}")
         else:
-            print(f"{GRAY}{file}: HTTP {response.status_code}{RESET}")
+            print(f"{GRAY}[.] {file}: HTTP {response.status_code}{RESET}")
 
 def getDNS(getWebsite):
-    print(f"{GRAY}Checking the DNS{RESET}")
+    print(f"\nDNS")
     
     hostname = urlparse(getWebsite).hostname
 
     try:
         ip = socket.gethostbyname(hostname)
 
-        print(f"{GRAY}IP Address: {ip}{RESET}")
+        print(f"{GRAY}[.] IP Address: {ip}{RESET}")
 
     except socket.gaierror:
-        print(f"{RED}Could not resolve hostname.{RESET}")
+        print(f"{RED}[!] Could not resolve hostname.{RESET}")
         
 def findEmails(getWebsite, response):
-    print(f"{GRAY}Finding emails{RESET}")
+    print(f"\nEmails")
     
     emails = re.findall(
         r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
@@ -510,26 +617,26 @@ def findEmails(getWebsite, response):
 
     if emails:
         emailCount = len(emails)
-        print(f"{GRAY}Found {emailCount} emails{RESET}")
+        print(f"{GRAY}[.] Found {emailCount} emails{RESET}")
 
         sorted_emails = sorted(emails)
 
         for i, email in enumerate(sorted_emails):
             if i < 10:
-                print(f"{ORANGE}Email found: {email}{RESET}")
+                print(f"{ORANGE}[~] Email found: {email}{RESET}")
             else:
                 if hasattr(sys.stdout, "log_file"):
                     sys.stdout.log_file.write(f"Email found: {email}\n")
             
         if emailCount > 10:
             remaining = emailCount - 10
-            print(f"{GRAY}...and {remaining} more found (check log.txt for full list){RESET}")
+            print(f"{GRAY}[.] ...and {remaining} more found (check log.txt for full list){RESET}")
             
     else:
-        print(f"{GREEN}No email addresses found.{RESET}")
+        print(f"{GREEN}[+] No email addresses found.{RESET}")
 
 def checkInsecureForms(getWebsite, response):
-    print(f"{GRAY}Checking insecure forms{RESET}")
+    print(f"\nInsecure forms")
     
     soup = BeautifulSoup(response.text, "html.parser")
 
@@ -539,29 +646,29 @@ def checkInsecureForms(getWebsite, response):
         action = form.get("action", "")
 
         if action.startswith("http://"):
-            print(f"{RED}Insecure form: {action}{RESET}")
+            print(f"{RED}[!] Insecure form: {action}{RESET}")
             found = True
 
     if not found:
-        print(f"{GREEN}No insecure forms found.{RESET}")
+        print(f"{GREEN}[+] No insecure forms found.{RESET}")
         
 def checkSecurityTxt(getWebsite):
-    print(f"{GRAY}Checking security.txt{RESET}")
+    print(f"\nSecurity.txt")
     
     url = getWebsite.rstrip("/") + "/.well-known/security.txt"
 
     response = requests.get(url, timeout=10)
 
     if response.status_code == 200:
-        print(f"{ORANGE}security.txt found{RESET}")
-        print(f"{ORANGE}Location: {url}{RESET}")
+        print(f"{ORANGE}[~] security.txt found{RESET}")
+        print(f"{ORANGE}[~] Location: {url}{RESET}")
     elif response.status_code == 404:
-        print(f"{GREEN}security.txt not found{RESET}")
+        print(f"{GREEN}[+] security.txt not found{RESET}")
     else:
-        print(f"{GRAY}security.txt: HTTP {response.status_code}{RESET}")
+        print(f"{GRAY}[.] security.txt: HTTP {response.status_code}{RESET}")
 
 def checkPasswordAutocomplete(getWebsite, response):
-    print(f"{GRAY}Checking if password fields autocomplete{RESET}")
+    print(f"\nPassword autocomplete")
     
     soup = BeautifulSoup(response.text, "html.parser")
 
@@ -572,19 +679,19 @@ def checkPasswordAutocomplete(getWebsite, response):
         autocomplete = password.get("autocomplete")
 
         if autocomplete == "off":
-            print(f"{GREEN}Password field: autocomplete=off{RESET}")
+            print(f"{GREEN}[+] Password field: autocomplete=off{RESET}")
         elif autocomplete:
-            print(f"{ORANGE}Password field: autocomplete={autocomplete}{RESET}")
+            print(f"{ORANGE}[~] Password field: autocomplete={autocomplete}{RESET}")
         else:
-            print(f"{GRAY}Password field: autocomplete not specified{RESET}")
+            print(f"{GRAY}[.] Password field: autocomplete not specified{RESET}")
 
     if not found:
-        print(f"{GREEN}No password autocomplete fields found{RESET}")
+        print(f"{GREEN}[+] No password autocomplete fields found{RESET}")
 
 
 # Page assets and metadata
 def getFaviconHash(getWebsite, response):
-    print(f"{GRAY}Checking and hashing favicon for infrastructure fingerprinting...{RESET}")
+    print(f"\nFavicon fingerprinting")
     
     soup = BeautifulSoup(response.text, "html.parser")
     favicon_url = None
@@ -607,19 +714,19 @@ def getFaviconHash(getWebsite, response):
             
             hash_value = mmh3.hash(favicon_base64)
             
-            print(f"{GRAY}Favicon found at: {full_favicon_url}{RESET}")
-            print(f"{GRAY}Favicon MurmurHash3: {ORANGE}{hash_value}{RESET}")
+            print(f"{GRAY}[.] Favicon found at: {full_favicon_url}{RESET}")
+            print(f"{ORANGE}[~] Favicon MurmurHash3: {hash_value}{RESET}")
             
             shodan_url = f"https://www.shodan.io/search?query=http.favicon.hash%3A{hash_value}"
-            print(f"{GRAY}Shodan Search Link. You need to be logged into Shodan to use this feature and it may return no results: {ORANGE}{shodan_url}{RESET}")
+            print(f"{GRAY}[.] Shodan Search Link. You need to be logged into Shodan to use this feature and it may return no results: {ORANGE}[~] {shodan_url}{RESET}")
         else:
-            print(f"{ORANGE}Favicon could not be retrieved (HTTP {fav_response.status_code}){RESET}")
+            print(f"{ORANGE}[~] Favicon could not be retrieved (HTTP {fav_response.status_code}){RESET}")
     except Exception as e:
-        print(f"{ORANGE}Error retrieving favicon: {e}{RESET}")
+        print(f"{ORANGE}[~] Error retrieving favicon: {e}{RESET}")
 
 
 def checkPerformanceReport(response):
-    print(f"{GRAY}Generating performance report{RESET}")
+    print(f"\nPerformance")
     
     elapsed_time_ms = response.elapsed.total_seconds() * 1000
     
@@ -628,19 +735,19 @@ def checkPerformanceReport(response):
     
     content_encoding = response.headers.get("Content-Encoding", "None")
     
-    print(f"{GRAY}Performance and speed analysis:{RESET}")
-    print(f"{GRAY}- Response Time (Latency): {GREEN}{elapsed_time_ms:.2f} ms{RESET}")
-    print(f"{GRAY}- Main Page Size: {GREEN}{content_size_kb:.2f} KB{RESET}")
+    print(f"{GRAY}[.] Performance and speed analysis:{RESET}")
+    print(f"{GRAY}[.] - Response Time (Latency): {GREEN}[+] {elapsed_time_ms:.2f} ms{RESET}")
+    print(f"{GRAY}[.] - Main Page Size: {GREEN}[+] {content_size_kb:.2f} KB{RESET}")
     
     if content_encoding != "None":
-        print(f"{GRAY}- Text Compression: {GREEN}Enabled ({content_encoding}){RESET}")
+        print(f"{GRAY}[.] - Text Compression: {GREEN}[+] Enabled ({content_encoding}){RESET}")
     else:
-        print(f"{GRAY}- Text Compression: {ORANGE}Disabled (Missing Content-Encoding){RESET}")
+        print(f"{GRAY}[.] - Text Compression: {ORANGE}[~] Disabled (Missing Content-Encoding){RESET}")
 
 
 # Site discovery and exposed resources
 def discoverSubdomains(getWebsite, response):
-    print(f"{GRAY}Discovering linked paths and subdomains{RESET}")
+    print(f"\nSubdomains{RESET}")
 
     sensitive_paths = {
         '/admin', '/administrator', '/api', '/backup',
@@ -675,22 +782,22 @@ def discoverSubdomains(getWebsite, response):
             subdomains.add(parsed_link.netloc)
 
     if paths:
-        print(f"{GRAY}Linked pages found:{RESET}")
+        print(f"{GRAY}[.] Linked pages found:{RESET}")
 
         for path in sorted(paths):
             if path in sensitive_paths:
-                print(f"{RED}{path}{RESET}")
+                print(f"{RED}[!] {path}{RESET}")
             else:
-                print(f"{GRAY}{path}{RESET}")
+                print(f"{GRAY}[.] {path}{RESET}")
     else:
-        print(f"{GREEN}No linked paths found{RESET}")
+        print(f"{GREEN}[+] No linked paths found{RESET}")
 
     if subdomains:
-        print(f"{GRAY}Linked pages found:{RESET}")
+        print(f"{GRAY}[.] Linked pages found:{RESET}")
         for subdomain in sorted(subdomains):
-            print(f"{GRAY}{subdomain}{RESET}")
+            print(f"{GRAY}[.] {subdomain}{RESET}")
     else:
-        print(f"{GREEN}No linked subdomains found{RESET}")
+        print(f"{GREEN}[+] No linked subdomains found{RESET}")
 
 
 # Program entry point
