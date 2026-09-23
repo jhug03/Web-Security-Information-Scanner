@@ -22,6 +22,7 @@ GRAY = "\033[90m"
 GREEN = "\033[32m"
 ORANGE = "\033[38;2;255;165;0m"
 
+# Logging
 class LogTee:
     def __init__(self, terminal, log_file):
         self.terminal = terminal
@@ -75,12 +76,9 @@ def startOptions():
         
 #  Handle getting the website the user wants to scan
 def grabWebsite():
-    print(f"{GRAY}Getting the website{RESET}")
     extensions = ['.com', '.co.uk', '.org', '.net', '.io', 'https://', 'http://'] # Site extensions
     
-    print(f"{GRAY}Initialising getting the website{RESET}")
-    
-    getWebsite = input('Enter the URL of the website you want to scan: ')
+    getWebsite = input('\nTARGET URL ➤ ')
     print(f"{GRAY}{getWebsite}{RESET}")
     
     if not getWebsite: # If user doesn't enter anything
@@ -113,6 +111,7 @@ def checkValidWebsite(getWebsite):
     except requests.RequestException:
         print(f"{RED}Website could not be reached. Exiting...{RESET}")
         exit()
+
 
 # Scan site headers
 def headerScan(getWebsite, response):
@@ -173,6 +172,8 @@ def headerScan(getWebsite, response):
         print(f"{RED}Could not get website headers despite website being reachable{RESET}")
         # Don't wanna quit it here so we leave this blank so the program can continue
         
+    print(f"{GRAY}Missing headers don't immediately indicate a problem{RESET}")
+
 # Get the web technologies used on the site
 # This is a WIP and doesn't display a lot right now
 # Use a library called webtech
@@ -283,15 +284,17 @@ def checkCookies(getWebsite, response):
 def checkMethods(getWebsite):
     print(f"{GRAY}Checking for any allowed methods{RESET}")
     
-    response = requests.options(getWebsite, timeout=10)
+    response = requests.options(getWebsite, timeout=10) # Get the response using requests from the site with a 10sec timeout
 
-    methods = response.headers.get("Allow")
+    methods = response.headers.get("Allow") # Get headers
 
     if methods:
         print(f"{GRAY}Allowed methods: {methods}{RESET}")
     else:
         print(f"{GREEN}Allowed methods not disclosed{RESET}")
         
+# Get site CORS. Stands for Cross-Origin Resource Sharing.
+# CORS is a browser security mechanism that controls whether JavaScript is allowed to read responses from a different website.
 def checkCORS(getWebsite, response):
     cors = response.headers.get("Access-Control-Allow-Origin")
 
@@ -305,6 +308,9 @@ def checkCORS(getWebsite, response):
     else:
         print(f"{GRAY}CORS: Not configured{RESET}")
 
+
+# Page structure and form checks
+# Get general information about the page
 def getPageInfo(getWebsite, response):
     print(f"{GRAY}Getting page info{RESET}")
     
@@ -575,6 +581,8 @@ def checkPasswordAutocomplete(getWebsite, response):
     if not found:
         print(f"{GREEN}No password autocomplete fields found{RESET}")
 
+
+# Page assets and metadata
 def getFaviconHash(getWebsite, response):
     print(f"{GRAY}Checking and hashing favicon for infrastructure fingerprinting...{RESET}")
     
@@ -629,6 +637,63 @@ def checkPerformanceReport(response):
     else:
         print(f"{GRAY}- Text Compression: {ORANGE}Disabled (Missing Content-Encoding){RESET}")
 
+
+# Site discovery and exposed resources
+def discoverSubdomains(getWebsite, response):
+    print(f"{GRAY}Discovering linked paths and subdomains{RESET}")
+
+    sensitive_paths = {
+        '/admin', '/administrator', '/api', '/backup',
+        '/backups', '/config', '/dashboard', '/db', '/debug',
+        '/env', '/graphql', '/internal', '/phpmyadmin', '/secret',
+        '/staging', '/test', '/vault', '/wp-admin'
+    }
+
+    base_url = urlparse(getWebsite)
+    base_hostname = (base_url.hostname or "").lower()
+    paths = set()
+    subdomains = set()
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    for anchor in soup.find_all("a", href=True):
+        link = urljoin(getWebsite, anchor["href"])
+        parsed_link = urlparse(link)
+
+        if parsed_link.scheme not in {"http", "https"}:
+            continue
+
+        hostname = (parsed_link.hostname or "").lower()
+        if not hostname:
+            continue
+
+        if hostname == base_hostname:
+            path = parsed_link.path or "/"
+            if parsed_link.query:
+                path = f"{path}?{parsed_link.query}"
+            paths.add(path)
+        elif hostname.endswith(f".{base_hostname}"):
+            subdomains.add(parsed_link.netloc)
+
+    if paths:
+        print(f"{GRAY}Linked pages found:{RESET}")
+
+        for path in sorted(paths):
+            if path in sensitive_paths:
+                print(f"{RED}{path}{RESET}")
+            else:
+                print(f"{GRAY}{path}{RESET}")
+    else:
+        print(f"{GREEN}No linked paths found{RESET}")
+
+    if subdomains:
+        print(f"{GRAY}Linked pages found:{RESET}")
+        for subdomain in sorted(subdomains):
+            print(f"{GRAY}{subdomain}{RESET}")
+    else:
+        print(f"{GREEN}No linked subdomains found{RESET}")
+
+
+# Program entry point
 if __name__ == "__main__":
     logs_directory = Path(__file__).resolve().parent / "logs"
     logs_directory.mkdir(exist_ok=True)
@@ -641,33 +706,44 @@ if __name__ == "__main__":
         sys.stderr = LogTee(original_stderr, log_file)
 
         try:
-            startOptions()
+            startOptions() # Choose whether to scan or clear logs
             agreeToPrivacy() # Check if user agrees to not scanning random targets
             getWebsite = grabWebsite() # Grab the website the user wants to scan but only if they agree above. Setup variable here first so it can be passed on without global initalisation.
             response = checkValidWebsite(getWebsite) # Check if the website is valid
+
+            # Connection and transport security
             headerScan(getWebsite, response) # Get the headers from the site
-            getWebTechnologies(getWebsite) # Get the web technologies. Area of improvement.
             getCert(getWebsite) # Get the certificate from the site
-            getRobots(getWebsite) # Get robots and sitemap
             checkCookies(getWebsite, response) # Check stored cookies
-            checkMethods(getWebsite)
-            checkCORS(getWebsite, response)
-            getPageInfo(getWebsite, response)
-            checkForms(getWebsite, response)
-            checkAccessKey(getWebsite, response)
-            checkMixedContent(response)
-            checkExternalScripts(getWebsite, response)
-            checkSRI(getWebsite, response)
-            checkComments(getWebsite, response)
-            checkDirectoryListing(getWebsite)
-            checkSensitiveFiles(getWebsite)
-            getDNS(getWebsite)
-            findEmails(getWebsite, response)
-            checkInsecureForms(getWebsite, response)
-            checkSecurityTxt(getWebsite)
-            checkPasswordAutocomplete(getWebsite, response)
-            getFaviconHash(getWebsite, response)
-            checkPerformanceReport(response)
+            checkMethods(getWebsite) # Check allowed HTTP methods
+            checkCORS(getWebsite, response) # Check CORS configuration
+
+            # Page structure and form security
+            getPageInfo(getWebsite, response) # Get general page information
+            checkForms(getWebsite, response) # Check forms on the page
+            checkInsecureForms(getWebsite, response) # Check for insecure form actions
+            checkPasswordAutocomplete(getWebsite, response) # Check password autocomplete settings
+            checkAccessKey(getWebsite, response) # Check for exposed access keys
+
+            # Page assets and metadata
+            checkMixedContent(response) # Check for mixed HTTP and HTTPS content
+            checkExternalScripts(getWebsite, response) # List external scripts
+            checkSRI(getWebsite, response) # Check Subresource Integrity
+            checkComments(getWebsite, response) # Check HTML comments
+            getFaviconHash(getWebsite, response) # Hash the site favicon
+
+            # Site discovery and exposed resources
+            getRobots(getWebsite) # Get robots and sitemap
+            checkDirectoryListing(getWebsite) # Check for exposed directory listings
+            checkSensitiveFiles(getWebsite) # Check for exposed sensitive files
+            checkSecurityTxt(getWebsite) # Check for security.txt
+            getDNS(getWebsite) # Resolve the site DNS information
+            findEmails(getWebsite, response) # Find email addresses in the page
+            discoverSubdomains(getWebsite, response) # Find linked paths and subdomains
+
+            # Technology and performance
+            getWebTechnologies(getWebsite) # Get the web technologies. Area of improvement.
+            checkPerformanceReport(response) # Generate the performance report
         
         finally:
             sys.stdout = original_stdout

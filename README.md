@@ -56,3 +56,4 @@ python3 main.py
 
 - Better framework/library detection
 - Version mapping with CVEs
+- Structured layout
