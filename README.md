@@ -48,9 +48,10 @@ python3 main.py
 - Colour-coded terminal output
 
 ## Colour codes
-- Red = May be bad
-- Orange = Point of interest
-- Green = Success
+- Red [!] = May be bad
+- Orange [~] = Point of interest
+- Green [+] = Success
+- Blue [!] = Information
 
 ## Planned Features
 

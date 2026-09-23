@@ -621,16 +621,8 @@ def findEmails(getWebsite, response):
 
         sorted_emails = sorted(emails)
 
-        for i, email in enumerate(sorted_emails):
-            if i < 10:
-                print(f"{ORANGE}[~] Email found: {email}{RESET}")
-            else:
-                if hasattr(sys.stdout, "log_file"):
-                    sys.stdout.log_file.write(f"Email found: {email}\n")
-            
-        if emailCount > 10:
-            remaining = emailCount - 10
-            print(f"{GRAY}[.] ...and {remaining} more found (check log.txt for full list){RESET}")
+        for email in sorted_emails:
+            print(f"{ORANGE}[~] Email found: {email}{RESET}")
             
     else:
         print(f"{GREEN}[+] No email addresses found.{RESET}")
