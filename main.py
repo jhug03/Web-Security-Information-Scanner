@@ -79,8 +79,7 @@ def startOptions():
 def grabWebsite():
     extensions = ['.com', '.co.uk', '.org', '.net', '.io', 'https://', 'http://'] # Site extensions
     
-    # getWebsite = input('\nTARGET URL ➤ ')
-    getWebsite = 'https://svelte-changelog.dev/package/eslint-config'
+    getWebsite = input('\nTARGET URL ➤ ')
     print(f"{GRAY}[.] {getWebsite}{RESET}")
     
     if not getWebsite: # If user doesn't enter anything

@@ -1,3 +1,4 @@
 requests
-builtwith
+webtech
 mmh3
+beautifulsoup4
